@@ -1,0 +1,47 @@
+{
+  "expectation_suite_name": "bronze_transactions_suite",
+  "meta": {
+    "notes": "Aggregate/statistical checks on landed bronze data, complementing the per-record validation in common/validation.py. Run via a checkpoint against the S3 bronze prefix or its Glue-cataloged table -- see governance/README.md."
+  },
+  "expectations": [
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "transaction_id" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "kwargs": { "column": "transaction_id" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "account_id" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": { "column": "amount", "min_value": 0, "max_value": 50000, "strict_min": true }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "merchant_category",
+        "value_set": [
+          "grocery", "electronics", "travel", "dining", "fuel",
+          "entertainment", "utilities", "healthcare", "clothing", "online_retail"
+        ]
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": { "column": "is_fraud", "value_set": [0, 1] }
+    },
+    {
+      "expectation_type": "expect_column_proportion_of_unique_values_to_be_between",
+      "kwargs": { "column": "transaction_id", "min_value": 1.0, "max_value": 1.0 }
+    },
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": { "min_value": 1 },
+      "meta": { "notes": "Catches a silently-empty crawl/ingestion run, not just bad rows." }
+    }
+  ]
+}
