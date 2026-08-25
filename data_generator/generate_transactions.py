@@ -44,6 +44,19 @@ CITIES = [
 
 FRAUD_PATTERNS = ("high_amount", "odd_hour", "impossible_travel")
 
+# Relative transaction volume by hour of day. Real card activity follows a
+# daily curve -- quiet overnight, ramping through the morning, peaking late
+# afternoon/evening. Without this the `odd_hour` fraud pattern is
+# undetectable: if legitimate transactions are spread uniformly, ~17% of
+# them already fall in the 1-4am window, so being there isn't anomalous.
+# With this curve that window holds well under 1% of normal traffic.
+HOUR_WEIGHTS = [
+    3, 1, 1, 1, 1, 2, 5, 15, 30, 45, 55, 60,
+    70, 65, 60, 60, 65, 70, 75, 70, 55, 40, 20, 8,
+]
+
+ODD_HOURS = (1, 2, 3, 4)
+
 # How often a legitimate transaction happens in the account's home city.
 # The remainder is ordinary travel -- deliberate noise, so geo velocity
 # isn't a trivially perfect discriminator.
@@ -80,6 +93,17 @@ def haversine_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float
     dlambda = math.radians(lon2 - lon1)
     a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlambda / 2) ** 2
     return 2 * radius * math.asin(math.sqrt(a))
+
+
+def diurnal_hour() -> int:
+    """Sample an hour of day from the realistic daily activity curve."""
+    return random.choices(range(24), weights=HOUR_WEIGHTS, k=1)[0]
+
+
+def _at_hour(ts: datetime, hour: int) -> datetime:
+    return ts.replace(
+        hour=hour, minute=random.randrange(60), second=random.randrange(60), microsecond=0
+    )
 
 
 def home_city(account_id: str) -> tuple[str, float, float]:
@@ -141,7 +165,9 @@ def _fraud(
         )
 
     if pattern == "odd_hour":
-        ts = ts.replace(hour=random.choice([1, 2, 3, 4]))
+        # The timestamp is expected to already sit in ODD_HOURS -- callers
+        # place it there before sorting, so shifting it here would break
+        # each account's chronological ordering.
         return _build(
             account_id, ts, random.uniform(5, 350), _pick_city(account_id), 1, pattern
         )
@@ -178,11 +204,13 @@ def generate_transaction(fraud_rate: float = 0.02, backdate_days: int = 0) -> Tr
     account_id = f"acct_{random.randint(1000, 1200)}"
     ts = datetime.now(timezone.utc)
     if backdate_days > 0:
-        ts -= timedelta(
-            days=random.uniform(0, backdate_days), seconds=random.uniform(0, 86400)
-        )
+        ts = _at_hour(ts - timedelta(days=random.uniform(0, backdate_days)), diurnal_hour())
+
     if random.random() < fraud_rate:
-        return _fraud(account_id, ts, random.choice(FRAUD_PATTERNS), None)
+        pattern = random.choice(FRAUD_PATTERNS)
+        if pattern == "odd_hour":
+            ts = _at_hour(ts, random.choice(ODD_HOURS))
+        return _fraud(account_id, ts, pattern, None)
     return _legit(account_id, ts)
 
 
@@ -199,26 +227,31 @@ def generate_batch(
     accounts = [f"acct_{1000 + i}" for i in range(account_count)]
 
     now = datetime.now(timezone.utc)
-    schedule: dict[str, list[datetime]] = defaultdict(list)
+
+    # Decide the pattern and place the timestamp BEFORE sorting: odd_hour
+    # moves a transaction to 1-4am, and doing that after sorting would
+    # break each account's chronological order (which impossible_travel
+    # depends on, since it positions itself relative to its predecessor).
+    schedule: dict[str, list[tuple[datetime, str]]] = defaultdict(list)
     for _ in range(n):
         account = random.choice(accounts)
-        offset = timedelta(
-            days=random.uniform(0, backdate_days), seconds=random.uniform(0, 86400)
-        ) if backdate_days > 0 else timedelta(0)
-        schedule[account].append(now - offset)
+        base = now - timedelta(days=random.uniform(0, backdate_days)) if backdate_days > 0 else now
+
+        pattern = random.choice(FRAUD_PATTERNS) if random.random() < fraud_rate else "none"
+        hour = random.choice(ODD_HOURS) if pattern == "odd_hour" else diurnal_hour()
+        schedule[account].append((_at_hour(base, hour), pattern))
 
     out: list[Transaction] = []
-    for account, times in schedule.items():
+    for account, entries in schedule.items():
         previous: Transaction | None = None
-        for ts in sorted(times):
-            if random.random() < fraud_rate:
-                pattern = random.choice(FRAUD_PATTERNS)
+        for ts, pattern in sorted(entries, key=lambda e: e[0]):
+            if pattern == "none":
+                txn = _legit(account, ts)
+            else:
                 # impossible_travel is meaningless without a predecessor.
                 if pattern == "impossible_travel" and previous is None:
                     pattern = "high_amount"
                 txn = _fraud(account, ts, pattern, previous)
-            else:
-                txn = _legit(account, ts)
             out.append(txn)
             previous = txn
 
