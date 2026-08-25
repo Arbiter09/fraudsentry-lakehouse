@@ -65,9 +65,12 @@ docs/             architecture diagram
 This gets synthetic transactions flowing end-to-end into a local bronze
 layer — the fastest way to see the pipeline actually run.
 
+Requires **Python 3.13** (3.14 isn't supported by the dependency set yet)
+and Docker.
+
 ```bash
 # 1. Install Python deps
-python3 -m venv .venv && source .venv/bin/activate
+python3.13 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 # 2. Start local Kafka
@@ -123,7 +126,19 @@ per-layer rather than folded into one script:
 
 ## Status
 
-Actively under development — see commit history for what's landed vs.
-in progress. Screenshots of the Dagster asset graph, DataHub lineage
-view, and Databricks notebook results get added to `docs/` as each
-piece is run against real infrastructure.
+**Verified working:** the local ingestion path (generator → Kafka →
+validation → partitioned bronze → dead-letter routing). Last run: 500
+transactions produced, 500 written, 0 rejected, fraud rate exactly as
+configured; four deliberately malformed records each hit the correct
+validation rule and landed in the dead-letter file without corrupting
+bronze or stopping the consumer.
+
+**Not yet run against real infrastructure:** the Terraform (needs a
+`terraform validate`/`plan` before first apply — the Lambda zip path
+expects a `build/` directory produced by the packaging step in
+`infra/README.md`), the Databricks notebooks (S3 paths are still
+`<bronze-bucket>` placeholders), dbt (needs a `profiles.yml`), Dagster,
+and the Great Expectations checkpoint (suite exists, but the GE context
+isn't initialized). Screenshots of the Dagster asset graph, DataHub
+lineage view, and Databricks notebook results get added to `docs/` as
+each piece runs for real.
