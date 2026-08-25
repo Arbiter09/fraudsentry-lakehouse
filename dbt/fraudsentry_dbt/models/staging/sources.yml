@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: fraudsentry
+    description: Delta tables written by the Databricks bronze->silver notebook.
+    schema: fraudsentry
+    tables:
+      - name: silver_transactions
+        description: Deduped, type-cast transaction records.
+        columns:
+          - name: transaction_id
+            tests:
+              - unique
+              - not_null
+          - name: amount
+            tests:
+              - not_null
