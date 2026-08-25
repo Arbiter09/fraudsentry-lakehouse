@@ -86,16 +86,30 @@ def _fraud_transaction(account_id: str, ts: datetime) -> Transaction:
     )
 
 
-def generate_transaction(fraud_rate: float = 0.02) -> Transaction:
+def generate_transaction(fraud_rate: float = 0.02, backdate_days: int = 0) -> Transaction:
+    """Generate one transaction.
+
+    `backdate_days` spreads the timestamp uniformly over the last N days
+    instead of pinning it to now. Streaming callers want the default (0 --
+    events happen as they're produced); batch/seed callers want a real
+    spread, otherwise every row lands in one `dt` partition and the
+    day-over-day models downstream (rolling windows in the silver->gold
+    notebook, fct_daily_account_summary in dbt) have nothing to work with.
+    """
     account_id = f"acct_{random.randint(1000, 1200)}"
     ts = datetime.now(timezone.utc)
+    if backdate_days > 0:
+        ts -= timedelta(
+            days=random.uniform(0, backdate_days),
+            seconds=random.uniform(0, 86400),
+        )
     if random.random() < fraud_rate:
         return _fraud_transaction(account_id, ts)
     return _normal_transaction(account_id, ts)
 
 
-def generate_batch(n: int, fraud_rate: float = 0.02) -> list[Transaction]:
-    return [generate_transaction(fraud_rate) for _ in range(n)]
+def generate_batch(n: int, fraud_rate: float = 0.02, backdate_days: int = 0) -> list[Transaction]:
+    return [generate_transaction(fraud_rate, backdate_days) for _ in range(n)]
 
 
 def main() -> None:
@@ -103,9 +117,15 @@ def main() -> None:
     parser.add_argument("--count", type=int, default=1000)
     parser.add_argument("--fraud-rate", type=float, default=0.02)
     parser.add_argument("--out", type=str, default=None, help="Write NDJSON to this path instead of stdout")
+    parser.add_argument(
+        "--backdate-days",
+        type=int,
+        default=0,
+        help="Spread timestamps over the last N days instead of pinning them to now",
+    )
     args = parser.parse_args()
 
-    batch = generate_batch(args.count, args.fraud_rate)
+    batch = generate_batch(args.count, args.fraud_rate, args.backdate_days)
     lines = "\n".join(t.to_json() for t in batch)
 
     if args.out:

@@ -35,6 +35,8 @@ governance/great_expectations/uncommitted/
 
 # Data
 data/
+bronze_sample/
+*.ndjson
 *.parquet
 *.csv
 !data_generator/sample_output/*.csv
