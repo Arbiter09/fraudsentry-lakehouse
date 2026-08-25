@@ -25,15 +25,18 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from common.validation import ValidationError, validate_transaction
-from data_generator.generate_transactions import generate_transaction
+from data_generator.generate_transactions import generate_batch
 
 
 def build(count: int, fraud_rate: float, out_dir: Path, single_file: bool, backdate_days: int) -> None:
     by_partition: dict[str, list[dict]] = {}
     rejected = 0
 
-    for _ in range(count):
-        raw = asdict(generate_transaction(fraud_rate, backdate_days))
+    # generate_batch (not generate_transaction in a loop) -- it builds
+    # per-account timelines, which is what makes the impossible_travel
+    # pattern land minutes after a real predecessor.
+    for txn in generate_batch(count, fraud_rate, backdate_days):
+        raw = asdict(txn)
         try:
             record = validate_transaction(raw)
         except ValidationError as e:  # shouldn't happen, but don't silently drop
@@ -64,12 +67,13 @@ def build(count: int, fraud_rate: float, out_dir: Path, single_file: bool, backd
                     f.write(json.dumps(r) + "\n")
             print(f"wrote {len(records)} records -> {path}")
 
-    fraud = Counter(
-        r["is_fraud"] for records in by_partition.values() for r in records
-    )
-    total = sum(fraud.values())
+    all_records = [r for records in by_partition.values() for r in records]
+    fraud = Counter(r["is_fraud"] for r in all_records)
+    patterns = Counter(r["fraud_pattern"] for r in all_records if r["is_fraud"])
+    total = len(all_records)
     if total:
         print(f"total={total} fraud={fraud[1]} rate={fraud[1] / total:.1%} rejected={rejected}")
+        print(f"fraud patterns: {dict(patterns)}")
 
 
 def main() -> None:

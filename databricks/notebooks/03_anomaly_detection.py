@@ -23,6 +23,8 @@ FEATURE_COLS = [
     "rolling_avg_amount",
     "rolling_txn_count",
     "amount_deviation",
+    "miles_from_previous",
+    "implied_mph",
 ]
 
 # COMMAND ----------
@@ -55,20 +57,37 @@ gold_pdf["predicted_fraud"] = (model.predict(gold_pdf[FEATURE_COLS]) == -1).asty
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Quick evaluation against injected labels
-# MAGIC Sanity check only. Don't expect strong numbers: the model sees no
-# MAGIC labels, and two of the three injected fraud patterns (odd hour,
-# MAGIC impossible travel) are only weakly represented in the current
-# MAGIC feature set -- `hour_of_day` catches some of the first, and nothing
-# MAGIC catches the second, since no geo-velocity feature exists yet.
-# MAGIC Recall on the high-amount pattern should be much better than on
-# MAGIC the other two. That gap is itself a good thing to talk about.
+# MAGIC ## Evaluation against injected labels
+# MAGIC The model never sees a label -- these are computed afterward.
+# MAGIC
+# MAGIC Read the **per-pattern recall** below rather than the headline
+# MAGIC number. The three injected patterns target different features, and
+# MAGIC averaging them hides which parts of the feature set are actually
+# MAGIC working:
+# MAGIC
+# MAGIC - `high_amount` -> `amount`, `amount_deviation`
+# MAGIC - `impossible_travel` -> `implied_mph`, `miles_from_previous`
+# MAGIC - `odd_hour` -> `hour_of_day` (weakest: legitimate transactions
+# MAGIC   happen at 1-4am too, so this pattern is inherently subtle)
 
 # COMMAND ----------
 
 from sklearn.metrics import classification_report
 
 print(classification_report(gold_pdf["is_fraud"], gold_pdf["predicted_fraud"]))
+
+# COMMAND ----------
+
+per_pattern = (
+    gold_pdf[gold_pdf["is_fraud"] == 1]
+    .groupby("fraud_pattern")
+    .agg(
+        injected=("predicted_fraud", "size"),
+        caught=("predicted_fraud", "sum"),
+    )
+)
+per_pattern["recall"] = (per_pattern["caught"] / per_pattern["injected"]).round(3)
+print(per_pattern)
 
 # COMMAND ----------
 
@@ -103,7 +122,8 @@ display(
     .select(
         "transaction_id", "account_id", "dt", "amount",
         "merchant_category", "hour_of_day", "amount_deviation",
-        "anomaly_score", "predicted_fraud", "is_fraud",
+        "miles_from_previous", "implied_mph",
+        "anomaly_score", "predicted_fraud", "is_fraud", "fraud_pattern",
     )
     .limit(25)
 )

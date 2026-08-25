@@ -101,6 +101,47 @@ if summary["actual_fraud"]:
 
 # COMMAND ----------
 
+# Recall per injected pattern. This is the number that actually says
+# whether the feature set works -- the headline recall averages three
+# patterns that target completely different features.
+per_pattern = (
+    scored.filter(F.col("is_fraud") == 1)
+    .groupBy("fraud_pattern")
+    .agg(
+        F.count("*").alias("injected"),
+        F.sum("predicted_fraud").alias("caught"),
+    )
+    .collect()
+)
+summary["per_pattern_recall"] = {
+    r["fraud_pattern"]: {
+        "injected": int(r["injected"]),
+        "caught": int(r["caught"]),
+        "recall": round(int(r["caught"]) / int(r["injected"]), 3) if r["injected"] else None,
+    }
+    for r in per_pattern
+}
+
+# Geo velocity should cleanly separate the travel pattern from the rest.
+geo = (
+    scored.groupBy(F.col("fraud_pattern") == "impossible_travel")
+    .agg(F.median("implied_mph").alias("median_mph"))
+    .collect()
+)
+summary["median_mph"] = {
+    ("impossible_travel" if r[0] else "everything_else"): round(float(r["median_mph"]), 1)
+    for r in geo
+}
+
+travel = summary["per_pattern_recall"].get("impossible_travel")
+if travel and travel["recall"] is not None and travel["recall"] < 0.5:
+    problems.append(
+        f"impossible_travel recall only {travel['recall']} -- geo velocity "
+        "feature isn't separating it"
+    )
+
+# COMMAND ----------
+
 summary["problems"] = problems
 summary["ok"] = not problems
 
