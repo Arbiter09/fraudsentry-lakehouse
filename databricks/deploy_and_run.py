@@ -24,8 +24,8 @@ from databricks.sdk.service.jobs import NotebookTask, SubmitTask, TaskDependency
 from databricks.sdk.service.workspace import ImportFormat, Language
 
 NOTEBOOK_DIR = Path(__file__).resolve().parent / "notebooks"
-ORDER = ["00_config", "01_bronze_to_silver", "02_silver_to_gold", "03_anomaly_detection"]
-RUNNABLE = ORDER[1:]  # 00_config is %run-included, never executed standalone
+ORDER = ["00_config", "01_bronze_to_silver", "02_silver_to_gold", "03_anomaly_detection", "99_verify"]
+RUNNABLE = ORDER[1:-1]  # 00_config is %run-included; 99_verify runs on demand
 
 
 def workspace_dir(client: WorkspaceClient, override: str | None) -> str:
