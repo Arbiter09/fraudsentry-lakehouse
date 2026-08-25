@@ -65,12 +65,15 @@ resource "aws_iam_role_policy" "lambda_bronze_permissions" {
 resource "aws_lambda_function" "bronze_ingest" {
   function_name = "${var.project_name}-bronze-ingest"
   role          = aws_iam_role.lambda_bronze.arn
-  handler       = "lambda.handler.handler"
-  runtime       = "python3.12"
-  filename      = "${path.module}/../build/lambda.zip"
+  # handler.py sits at the zip root -- NOT under a lambda/ directory,
+  # since `lambda` is a Python keyword and unimportable as a module path.
+  # See infra/build_lambda.sh.
+  handler          = "handler.handler"
+  runtime          = "python3.12"
+  filename         = "${path.module}/../build/lambda.zip"
   source_code_hash = filebase64sha256("${path.module}/../build/lambda.zip")
-  timeout       = 30
-  memory_size   = 256 # smallest practical size, stays well within free-tier compute
+  timeout          = 30
+  memory_size      = 256 # smallest practical size, stays well within free-tier compute
 
   environment {
     variables = {
