@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: fct_daily_account_summary
+    description: One row per account per day -- transaction count, spend, and flagged-fraud count.
+    columns:
+      - name: account_id
+        tests:
+          - not_null
+      - name: transaction_date
+        tests:
+          - not_null
+      - name: transaction_count
+        tests:
+          - not_null
+      - name: total_amount
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - account_id
+            - transaction_date
