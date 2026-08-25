@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 from kafka import KafkaConsumer
+from kafka.serializer import JsonSerializer
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from common.validation import ValidationError, validate_transaction
@@ -27,7 +28,7 @@ def run(bootstrap_servers: str, out_dir: Path, group_id: str) -> None:
         bootstrap_servers=bootstrap_servers,
         group_id=group_id,
         auto_offset_reset="earliest",
-        value_deserializer=lambda v: json.loads(v.decode("utf-8")),
+        value_deserializer=JsonSerializer(),
     )
 
     out_dir.mkdir(parents=True, exist_ok=True)

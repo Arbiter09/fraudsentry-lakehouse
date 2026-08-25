@@ -12,7 +12,7 @@ from __future__ import annotations
 import base64
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 import boto3
 
@@ -66,6 +66,6 @@ def _send_to_dlq(raw: str, error: str) -> None:
         MessageBody=json.dumps({
             "error": error,
             "raw": raw,
-            "failed_at": datetime.utcnow().isoformat(),
+            "failed_at": datetime.now(timezone.utc).isoformat(),
         }),
     )

@@ -4,7 +4,7 @@ the two ingestion paths enforce identical rules.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 REQUIRED_FIELDS = {
@@ -41,6 +41,8 @@ def validate_transaction(record: dict[str, Any]) -> dict[str, Any]:
         raise ValidationError(f"invalid is_fraud: {record.get('is_fraud')!r}")
 
     enriched = dict(record)
-    enriched["ingested_at"] = datetime.utcnow().isoformat()
+    # Timezone-aware to match the tz-aware `timestamp` field -- utcnow()
+    # would give a naive datetime, making the two incomparable downstream.
+    enriched["ingested_at"] = datetime.now(timezone.utc).isoformat()
     enriched["dt"] = ts.date().isoformat()
     return enriched

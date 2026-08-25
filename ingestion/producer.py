@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 
 from kafka import KafkaProducer
+from kafka.serializer import DefaultSerializer
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from data_generator.generate_transactions import generate_transaction
@@ -21,8 +22,8 @@ TOPIC = "transactions"
 def run(bootstrap_servers: str, rate_per_sec: float, fraud_rate: float, count: int | None) -> None:
     producer = KafkaProducer(
         bootstrap_servers=bootstrap_servers,
-        value_serializer=lambda v: v.encode("utf-8"),
-        key_serializer=lambda k: k.encode("utf-8"),
+        value_serializer=DefaultSerializer(),
+        key_serializer=DefaultSerializer(),
     )
 
     sent = 0
