@@ -10,8 +10,6 @@ Two Free Edition quotas to keep in mind if it fails: the 5-concurrent-task
 cap, and the fact that only workspace-level APIs are available (no
 account-level API access). See databricks/README.md.
 """
-from __future__ import annotations
-
 from dagster import AssetExecutionContext, Failure, MaterializeResult, asset
 
 from fraudsentry_dagster.dbt_assets import fraudsentry_dbt_assets

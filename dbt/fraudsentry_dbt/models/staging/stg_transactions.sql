@@ -11,5 +11,6 @@ select
     city,
     lat,
     lon,
-    is_fraud
+    is_fraud,
+    fraud_pattern
 from {{ source('fraudsentry', 'silver_transactions') }}

@@ -1,0 +1,27 @@
+# dbt connection profile.
+#
+# No secrets here -- the token comes from the DATABRICKS_TOKEN environment
+# variable at runtime. Every value has a placeholder default so that
+# `dbt parse` (which Dagster needs, to build the asset graph from the
+# manifest) works offline without credentials. Only `dbt build`, which
+# actually connects, requires the real values.
+#
+# To run for real:
+#   export DATABRICKS_HOST=dbc-xxxx.cloud.databricks.com
+#   export DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/<warehouse-id>
+#   export DATABRICKS_TOKEN=dapi...        # needs the `sql` token scope
+#
+# The HTTP path is in the Databricks UI under
+# SQL Warehouses -> <warehouse> -> Connection details.
+
+fraudsentry_dbt:
+  target: dev
+  outputs:
+    dev:
+      type: databricks
+      host: "{{ env_var('DATABRICKS_HOST', 'placeholder.cloud.databricks.com') }}"
+      http_path: "{{ env_var('DATABRICKS_HTTP_PATH', '/sql/1.0/warehouses/placeholder') }}"
+      token: "{{ env_var('DATABRICKS_TOKEN', 'placeholder') }}"
+      catalog: fraudsentry
+      schema: fraudsentry
+      threads: 4

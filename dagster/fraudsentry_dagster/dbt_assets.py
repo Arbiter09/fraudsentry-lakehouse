@@ -3,8 +3,6 @@ and turns every model/test into a Dagster asset, so the dbt DAG (and its
 test results) show up directly in the Dagster asset graph and lineage
 view instead of as an opaque black-box step.
 """
-from __future__ import annotations
-
 import os
 from pathlib import Path
 

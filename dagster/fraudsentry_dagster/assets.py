@@ -3,8 +3,6 @@ the dbt manifest); the Databricks scoring asset lives in
 databricks_asset.py, which carries its own notes on Databricks Free
 Edition's job quotas -- see that module's docstring.
 """
-from __future__ import annotations
-
 import os
 import time
 

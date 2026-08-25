@@ -18,18 +18,29 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: [0, 1]
+              arguments:
+                values: [0, 1]
       - name: merchant_category
         tests:
           - accepted_values:
-              values:
-                - grocery
-                - electronics
-                - travel
-                - dining
-                - fuel
-                - entertainment
-                - utilities
-                - healthcare
-                - clothing
-                - online_retail
+              arguments:
+                values:
+                  - grocery
+                  - electronics
+                  - travel
+                  - dining
+                  - fuel
+                  - entertainment
+                  - utilities
+                  - healthcare
+                  - clothing
+                  - online_retail
+      - name: fraud_pattern
+        tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - none
+                  - high_amount
+                  - odd_hour
+                  - impossible_travel
