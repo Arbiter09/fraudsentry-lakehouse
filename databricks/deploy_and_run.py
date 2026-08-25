@@ -28,9 +28,24 @@ ORDER = ["00_config", "01_bronze_to_silver", "02_silver_to_gold", "03_anomaly_de
 RUNNABLE = ORDER[1:]  # 00_config is %run-included, never executed standalone
 
 
-def workspace_dir(client: WorkspaceClient) -> str:
-    user = client.current_user.me().user_name
-    return f"/Users/{user}/fraudsentry"
+def workspace_dir(client: WorkspaceClient, override: str | None) -> str:
+    """Resolve the workspace folder to import into.
+
+    Looking up the current user needs an extra token scope (`iam`), which
+    is otherwise unnecessary -- so treat it as best-effort and let
+    --target-dir bypass it entirely.
+    """
+    if override:
+        return override.rstrip("/")
+    try:
+        user = client.current_user.me().user_name
+        return f"/Users/{user}/fraudsentry"
+    except Exception as e:
+        sys.exit(
+            f"could not look up current user ({e}).\n"
+            "Either grant the token the `iam` scope, or re-run with "
+            "--target-dir /Users/<your-email>/fraudsentry"
+        )
 
 
 def do_import(client: WorkspaceClient, target_dir: str) -> None:
@@ -102,12 +117,14 @@ def main() -> None:
     parser.add_argument("--import-only", action="store_true")
     parser.add_argument("--run-only", action="store_true")
     parser.add_argument("--notebook", help="run just this one notebook, e.g. 01_bronze_to_silver")
+    parser.add_argument(
+        "--target-dir",
+        help="workspace folder to import into; avoids needing the `iam` token scope",
+    )
     args = parser.parse_args()
 
     client = WorkspaceClient()
-    me = client.current_user.me()
-    target = workspace_dir(client)
-    print(f"connected as {me.user_name}")
+    target = workspace_dir(client, args.target_dir)
     print(f"target workspace dir: {target}\n")
 
     if not args.run_only:
