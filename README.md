@@ -20,12 +20,12 @@ Two constraints shaped every design decision here, and they're both
   development runs against a Dockerized Kafka broker instead — the
   producer/consumer code is identical either way, only the bootstrap
   server address changes.
-- **Databricks Community Edition.** No Unity Catalog (the Glue Data
-  Catalog fills that role instead) and inconsistent Jobs API support for
-  external orchestration. The Dagster → Databricks step
-  (`dagster/fraudsentry_dagster/databricks_asset.py`) makes a real API
-  call and documents exactly what to do if your workspace rejects it
-  (run the notebooks manually).
+- **Databricks Free Edition.** Serverless-only and quota-limited (one
+  `2X-Small` SQL warehouse, 5 concurrent job tasks, Python/SQL only).
+  It replaced Community Edition, which was retired 2026-01-01. The main
+  open question it creates is whether the notebooks can read the S3
+  bronze layer directly or need data staged into a Unity Catalog
+  Volume — see [`databricks/README.md`](databricks/README.md).
 
 If you're reading this as a hiring manager or interviewer: that's the
 point of building it this way — it's a real story about working within
@@ -53,7 +53,7 @@ common/           validation rules shared by the local consumer and the Lambda h
 ingestion/        Kafka producer + local bronze consumer, docker-compose for Kafka
 lambda/           Lambda handler deployed via Terraform, triggered by MSK
 infra/            Terraform: S3, Glue, Lambda, MSK (gated behind enable_msk)
-databricks/       Community Edition notebooks: bronze -> silver -> gold -> anomaly scoring
+databricks/       Free Edition notebooks: bronze -> silver -> gold -> anomaly scoring
 dbt/              dbt project: staging + marts models, schema + custom tests
 dagster/          orchestration: Glue crawler asset, dbt assets, Databricks job asset
 governance/       OpenLineage/DataHub setup, Great Expectations suite
@@ -102,7 +102,7 @@ per-layer rather than folded into one script:
 - **AWS (S3/Glue/Lambda, optionally MSK):** [`infra/README.md`](infra/README.md) —
   Terraform package/apply/destroy sequence, with explicit cost notes.
 - **Databricks notebooks:** [`databricks/README.md`](databricks/README.md) —
-  import order, Community Edition credential setup, orchestration caveats.
+  import order, Free Edition capabilities/limits, and the open S3-access question.
 - **dbt:** from `dbt/fraudsentry_dbt/`, standard `dbt deps && dbt build`
   once your `~/.dbt/profiles.yml` points at the Databricks silver/gold
   schema.

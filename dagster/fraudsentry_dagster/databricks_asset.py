@@ -1,13 +1,14 @@
-"""Databricks scoring step, kept separate from assets.py because whether
-this can actually run programmatically is unresolved (see the Phase 0
-spike note in the project plan and databricks/README.md): Community
-Edition has historically restricted/disallowed Jobs API submission.
+"""Databricks scoring step, submitting the three notebooks as a one-time
+job run via the Databricks SDK.
 
-This asset makes a real attempt via the Databricks SDK. If your
-workspace rejects it, that's the expected Community Edition limitation,
-not a bug here -- run the three notebooks manually (or on Databricks'
-own notebook scheduler) instead, and treat this asset as documentation
-of the intended automation for a paid workspace.
+This was originally written defensively because Community Edition had no
+usable Jobs API. CE was retired 2026-01-01, and its replacement --
+Databricks Free Edition -- does support Jobs (capped at 5 concurrent job
+tasks per account), so this asset is expected to work as intended.
+
+Two Free Edition quotas to keep in mind if it fails: the 5-concurrent-task
+cap, and the fact that only workspace-level APIs are available (no
+account-level API access). See databricks/README.md.
 """
 from __future__ import annotations
 
@@ -41,10 +42,10 @@ def gold_scored_transactions(context: AssetExecutionContext) -> MaterializeResul
         run = waiter.result()
     except Exception as e:
         context.log.warning(
-            "Databricks job submission failed. If you're on Community "
-            "Edition this is the expected API restriction (see "
-            "databricks/README.md), not a bug in this asset -- run the "
-            f"notebooks manually instead. Original error: {e}"
+            "Databricks job submission failed. On Free Edition, check the "
+            "5-concurrent-job-task quota and that your PAT targets the "
+            "workspace API (account-level APIs are unavailable). See "
+            f"databricks/README.md. Original error: {e}"
         )
         raise Failure(f"Databricks job submission failed: {e}") from e
 

@@ -1,5 +1,20 @@
 # governance/ -- lineage and data quality
 
+Lineage comes from two complementary places, and it's worth being clear
+about why both exist:
+
+- **Unity Catalog** (built into Databricks Free Edition) captures
+  table- and column-level lineage automatically for anything that runs
+  inside Databricks -- no setup, no extra services. This is the fastest
+  path to a real lineage screenshot, so **start here**.
+- **OpenLineage -> DataHub** (below) is what stitches the *non*-Databricks
+  half in: S3, the Glue crawler, and the Dagster orchestration layer. UC
+  can't see those. Stand this up second, once UC lineage is working.
+
+If you only have time for one, UC lineage covers the "column-level
+lineage" interview question with far less operational overhead. DataHub
+is what demonstrates cross-tool lineage across a heterogeneous stack.
+
 ## Lineage: OpenLineage -> DataHub
 
 DataHub ships its own quickstart, which is the supported way to stand up

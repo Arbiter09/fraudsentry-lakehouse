@@ -1,7 +1,7 @@
 """Ingestion + Glue assets. dbt assets live in dbt_assets.py (loaded from
 the dbt manifest); the Databricks scoring asset lives in
-databricks_asset.py, kept separate because its Community Edition API
-availability is unresolved -- see that module's docstring.
+databricks_asset.py, which carries its own notes on Databricks Free
+Edition's job quotas -- see that module's docstring.
 """
 from __future__ import annotations
 
