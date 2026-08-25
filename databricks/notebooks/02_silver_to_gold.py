@@ -10,8 +10,7 @@
 
 # COMMAND ----------
 
-SILVER_TABLE = "fraudsentry.silver_transactions"
-GOLD_TABLE = "fraudsentry.gold_account_features"
+# MAGIC %run ./00_config
 
 # COMMAND ----------
 
@@ -54,8 +53,26 @@ gold_df = (
     gold_df.write
     .format("delta")
     .mode("overwrite")
+    .option("overwriteSchema", "true")
     .partitionBy("dt")
     .saveAsTable(GOLD_TABLE)
 )
 
 print(f"wrote {gold_df.count()} rows to {GOLD_TABLE}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Sanity check
+# MAGIC `rolling_txn_count` should ramp 1..10 as each account accumulates
+# MAGIC history, then flatten at 10 (the window is `rowsBetween(-9, 0)`).
+# MAGIC If it's 1 everywhere, the timestamps aren't spread across days.
+
+# COMMAND ----------
+
+display(
+    spark.table(GOLD_TABLE)
+    .groupBy("rolling_txn_count")
+    .count()
+    .orderBy("rolling_txn_count")
+)

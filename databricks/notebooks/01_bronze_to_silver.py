@@ -1,35 +1,24 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # Bronze -> Silver
-# MAGIC Reads raw validated transaction JSON from S3 bronze, dedupes and
-# MAGIC casts types, and writes a Delta silver table. Run this after the
-# MAGIC Glue crawler has registered the bronze prefix (see infra/glue.tf).
+# MAGIC Reads validated transaction JSON from the bronze layer, dedupes and
+# MAGIC casts types, and writes a Delta silver table.
 # MAGIC
-# MAGIC ## Reading the bronze layer
-# MAGIC On Databricks Free Edition, S3 access goes through a Unity Catalog
-# MAGIC **storage credential + external location**, not the old
-# MAGIC Community-Edition `fs.s3a.access.key` Spark config (CE was retired
-# MAGIC 2026-01-01).
-# MAGIC
-# MAGIC If your Free Edition account can't create an external location,
-# MAGIC use the UC Volume fallback instead: stage bronze files with
-# MAGIC `databricks fs cp --recursive ./data/bronze <volume-path>` and set
-# MAGIC `BRONZE_PATH` to the volume. See databricks/README.md.
+# MAGIC Bronze location and table names come from `00_config` -- see that
+# MAGIC notebook to switch between the UC Volume and an S3 external
+# MAGIC location.
 
 # COMMAND ----------
 
-# Option A -- UC external location over the S3 bronze prefix:
-BRONZE_PATH = "s3://<bronze-bucket>/bronze/transactions/"
-# Option B -- UC Volume fallback (see the note above):
-# BRONZE_PATH = "/Volumes/<catalog>/<schema>/bronze/transactions/"
-
-SILVER_TABLE = "fraudsentry.silver_transactions"
+# MAGIC %run ./00_config
 
 # COMMAND ----------
 
 from pyspark.sql import functions as F
 
 bronze_df = spark.read.json(BRONZE_PATH)
+print(f"read {bronze_df.count()} raw records from {BRONZE_PATH}")
+bronze_df.printSchema()
 
 # COMMAND ----------
 
@@ -37,6 +26,7 @@ silver_df = (
     bronze_df
     .dropDuplicates(["transaction_id"])
     .withColumn("timestamp", F.to_timestamp("timestamp"))
+    .withColumn("ingested_at", F.to_timestamp("ingested_at"))
     .withColumn("amount", F.col("amount").cast("double"))
     .withColumn("lat", F.col("lat").cast("double"))
     .withColumn("lon", F.col("lon").cast("double"))
@@ -46,14 +36,33 @@ silver_df = (
 
 # COMMAND ----------
 
-spark.sql("CREATE DATABASE IF NOT EXISTS fraudsentry")
-
 (
     silver_df.write
     .format("delta")
     .mode("overwrite")
+    .option("overwriteSchema", "true")
     .partitionBy("dt")
     .saveAsTable(SILVER_TABLE)
 )
 
 print(f"wrote {silver_df.count()} rows to {SILVER_TABLE}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Sanity check
+# MAGIC Row count per day should show the ~14-day spread the sample builder
+# MAGIC produces. A single row here means the generator wasn't backdated
+# MAGIC (see `data_generator/make_bronze_sample.py --backdate-days`).
+
+# COMMAND ----------
+
+display(
+    spark.table(SILVER_TABLE)
+    .groupBy("dt")
+    .agg(
+        F.count("*").alias("transactions"),
+        F.sum("is_fraud").alias("fraud"),
+    )
+    .orderBy("dt")
+)
