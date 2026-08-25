@@ -1,0 +1,5 @@
+# Local ingestion (data_generator/, ingestion/)
+kafka-python==2.0.2
+
+# Lambda handler dev/test (lambda/)
+boto3==1.34.145
