@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Env / secrets
+.env
+*.pem
+*.key
+.databricks-connect
+*.tfvars
+!*.tfvars.example
+
+# Terraform
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.*
+infra/.terraform.lock.hcl
+infra/crash.log
+
+# Dagster
+dagster/**/storage/
+dagster/**/.dagster_home/
+
+# dbt
+dbt/**/target/
+dbt/**/dbt_packages/
+dbt/**/logs/
+
+# Great Expectations
+governance/great_expectations/uncommitted/
+
+# Data
+data/
+*.parquet
+*.csv
+!data_generator/sample_output/*.csv
+
+# OS
+.DS_Store
